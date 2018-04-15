@@ -9,6 +9,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
+
+
 class D(nn.module):
     def __init__(self, d=128):
         super(D, self).__init__()
@@ -20,7 +22,24 @@ class D(nn.module):
         self.conv4 = nn.Conv2d(d*4, d*8, 4, 2, 1)
         self.conv4_bn = nn.BatchNorm2d(d*8)
         self.conv5 = nn.Conv2d(d*8, 1, 4, 1, 0)
+
     def weight_init(self, mean, std):
         for m in self._modules:
             normal_init(self._modules[m], mean, std)
+
     def forward(self, input):
+        x = F.leaky_relu(self.conv1(input), 0.2)
+        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
+        x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
+        x = F.leaky_relu(self.conv4_bn(self.conv4(x)), 0.2)
+        x = F.sigmoid(self.conv5(x))
+
+        return x
+
+
+
+def normal_init(m, mean, std):
+    if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+        m.weight.data.normal_(mean, std)
+        m.bias.data.zero_()
+        
