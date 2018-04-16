@@ -198,14 +198,14 @@ def show_landmarks_batch(sample_batched):
         plt.title('Batch from dataloader')
 
 
-for i_batch, sample_batched in enumerate(dataloader):
-    print(i_batch, sample_batched['image'].size(), sample_batched['landmarks'].size())
-
-    # observe 4th batch and stop.
-    if i_batch == 3:
-        plt.figure()
-        show_landmarks_batch(sample_batched)
-        plt.axis('off')
-        plt.ioff()
-        plt.show()
-        break
+# for i_batch, sample_batched in enumerate(dataloader):
+#     print(i_batch, sample_batched['image'].size(), sample_batched['landmarks'].size())
+#
+#     # observe 4th batch and stop.
+#     if i_batch == 3:
+#         plt.figure()
+#         show_landmarks_batch(sample_batched)
+#         plt.axis('off')
+#         plt.ioff()
+#         plt.show()
+#         break
