@@ -3,6 +3,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import torch
 
+
+def weight_init(self, m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
 class G(nn.Module):
     def __init__(self, d=128):
         super(G, self).__init__()
@@ -16,9 +24,7 @@ class G(nn.Module):
         self.deconv4_bn = nn.BatchNorm2d(d)
         self.deconv5 = nn.ConvTranspose2d(d, 3, 4, 2, 1)
 
-    def weight_init(self, mean, std):
-        for m in self._modules:
-            normal_init(self._modules[m], mean, std)
+
 
     def forward(self, input):
         x = F.relu(self.deconv1_bn(self.deconv1(input)))
@@ -29,6 +35,13 @@ class G(nn.Module):
 
         return x
 
+    def weight_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            m.weight.data.normal_(0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)
 
 
 
@@ -44,9 +57,9 @@ class D(nn.Module):
         self.conv4_bn = nn.BatchNorm2d(d*8)
         self.conv5 = nn.Conv2d(d*8, 1, 4, 1, 0)
 
-    def weight_init(self, mean, std):
-        for m in self._modules:
-            normal_init(self._modules[m], mean, std)
+    # def weight_init(self, mean, std):
+    #     for m in self._modules:
+    #         normal_init(self._modules[m], mean, std)
 
     def forward(self, input):
         x = F.leaky_relu(self.conv1(input), 0.2)
@@ -57,7 +70,13 @@ class D(nn.Module):
 
         return x
 
-
+    def weight_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            m.weight.data.normal_(0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)
 
 def normal_init(m, mean, std):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
