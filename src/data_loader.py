@@ -39,7 +39,7 @@ class FaceLandmarksDataset(Dataset):
         """
         self.root_dir = root_dir
         self.landmarks_frame = pd.read_csv(self.root_dir+txt_file, skiprows=2, header=None, delim_whitespace=True)
-        print(self.landmarks_frame)
+
         self.transform = transform
 
     def __len__(self):
@@ -53,8 +53,8 @@ class FaceLandmarksDataset(Dataset):
         sample = {'image': image, 'landmarks': landmarks}
 
         if self.transform:
-            sample = self.transform(sample)
-
+            # sample = self.transform(sample)
+            sample = self.transform(image)
         return sample
 
 
@@ -170,13 +170,24 @@ transformed_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
                                                ToTensor()
                                            ]))
 
-for i in range(len(transformed_dataset)):
-    sample = transformed_dataset[i]
-    print(i, sample['image'].size(), sample['landmarks'].size())
-    if i == 3:
-        break
 
-dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)
+transformed_coco_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
+                                           root_dir=root_dir,
+                                           transform=transforms.Compose([
+                                               Rescale(108),
+                                               RandomCrop(224),
+                                               ToTensor()
+                                           ]))
+
+# for i in range(len(transformed_dataset)):
+#     sample = transformed_dataset[i]
+#     print(i, sample['image'].size(), sample['landmarks'].size())
+#     if i == 3:
+#         break
+
+# dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)
+
+
 
 # Helper function to show a batch
 def show_landmarks_batch(sample_batched):
@@ -197,15 +208,18 @@ def show_landmarks_batch(sample_batched):
 
         plt.title('Batch from dataloader')
 
+if __name__ == "__main__":
 
-# for i_batch, sample_batched in enumerate(dataloader):
-#     print(i_batch, sample_batched['image'].size(), sample_batched['landmarks'].size())
-#
-#     # observe 4th batch and stop.
-#     if i_batch == 3:
-#         plt.figure()
-#         show_landmarks_batch(sample_batched)
-#         plt.axis('off')
-#         plt.ioff()
-#         plt.show()
-#         break
+
+
+    for i_batch, sample_batched in enumerate(dataloader):
+        print(i_batch, sample_batched['image'].size(), sample_batched['landmarks'].size())
+
+        # observe 4th batch and stop.
+        if i_batch == 3:
+            plt.figure()
+            show_landmarks_batch(sample_batched)
+            plt.axis('off')
+            plt.ioff()
+            plt.show()
+            break

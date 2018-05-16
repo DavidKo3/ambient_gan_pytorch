@@ -17,6 +17,7 @@ from torch.autograd import Variable
 
 import argparse
 import dcgan as model
+import data_loader as data_loader
 print("Sdfsf")
 
 
@@ -39,24 +40,6 @@ if torch.cuda.is_available() :
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 
-# data_loader
-img_size = 64
-isCrop = False
-if isCrop:
-    transform = transforms.Compose([
-        transforms.Scale(108),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-    ])
-else:
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-    ])
-transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-])
 
 
 fixed_z_ = torch.randn((5 * 5, 100)).view(-1, 100, 1, 1)    # fixed noise
@@ -118,66 +101,45 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
     if show:
         plt.show()
     else:
-        plt.close()
-
-    fixed_z_ = torch.randn((5 * 5, 100)).view(-1, 100, 1, 1)  # fixed noise
-    fixed_z_ = Variable(fixed_z_.cuda(), volatile=True)
-
-    def show_result(num_epoch, show=False, save=False, path='result.png', isFix=False):
-        z_ = torch.randn((5 * 5, 100)).view(-1, 100, 1, 1)
-        z_ = Variable(z_.cuda(), volatile=True)
-
-        G.eval()
-        if isFix:
-            test_images = G(fixed_z_)
-        else:
-            test_images = G(z_)
-        G.train()
-
-        size_figure_grid = 5
-        fig, ax = plt.subplots(size_figure_grid, size_figure_grid, figsize=(5, 5))
-        for i, j in itertools.product(range(size_figure_grid), range(size_figure_grid)):
-            ax[i, j].get_xaxis().set_visible(False)
-            ax[i, j].get_yaxis().set_visible(False)
-
-        for k in range(5 * 5):
-            i = k // 5
-            j = k % 5
-            ax[i, j].cla()
-            ax[i, j].imshow((test_images[k].cpu().data.numpy().transpose(1, 2, 0) + 1) / 2)
-
-        label = 'Epoch {0}'.format(num_epoch)
-        fig.text(0.5, 0.04, label, ha='center')
-        plt.savefig(path)
-
-        if show:
-            plt.show()
-        else:
-            plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
+        plt.close
 # training parameters
 batch_size = 128
 lr = 0.0002
 train_epoch = 20
 
-
+isCrop = False
 # data_loader
 img_size = 64
-transform = transforms.Compose([transforms.Scale(img_size), transforms.ToTensor(), transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+if isCrop:
+    transform = transforms.Compose([
+        transforms.Scale(108),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+    ])
+else:
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+    ])
+transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+])
 
-train_loader = torch.utils.data.DataLoader(datasets.MNIST('data' ,train=True, download=True, transform=transform), batch_size=batch_size, shuffle=True)
+transform_manualed = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+
+])
+
+root_dir= '/home/davidk/Downloads/celeba_dataset/'
+img_pwd = 'Img/img_align_celeba/'
+annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
+
+transformed_coco_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
+                                           root_dir=root_dir, transform=transform)
+
+train_loader =torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=128, shuffle=True)
 
 # network
 G = model.G(128)
@@ -211,11 +173,26 @@ train_hist['total_ptime'] = []
 print("=*10")
 print("training begin !!")
 
+num_iter = 0
 start_time = time.time()
 for epoch in range(train_epoch):
     D_losses = []
     G_losses = []
-    for x_, _ in train_loader:
+
+    # learning rate decay
+    if (epoch+1) == 11:
+        G_optimizer.param_groups[0]['lr'] /= 10
+        D_optimizer.param_groups[0]['lr'] /= 10
+        print("learning rate change!")
+
+    if (epoch+1) == 16:
+        G_optimizer.param_groups[0]['lr'] /= 10
+        D_optimizer.param_groups[0]['lr'] /= 10
+        print("learning rate change!")
+
+    epoch_start_time = time.time()
+    for x_ in train_loader:
+        print(x_)
         # train discriminator D
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -257,7 +234,7 @@ for epoch in range(train_epoch):
         # train generator G
         G.zero_grad()
 
-        z = torch.randn((mini_batch, 100)).view(-1, 100, 1 ,1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
+        z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
         z = Variable(z.cuda())
 
         G_result = G(z)
@@ -267,6 +244,38 @@ for epoch in range(train_epoch):
         G_train_loss.step()
 
         G_losses.append(G_train_loss.data[0])
+
+        num_iter += 1
+
+    epoch_end_time = time.time()
+    per_epoch_ptime = epoch_end_time - epoch_start_time
+
+
+end_time = time.time()
+total_ptime = end_time - start_time
+train_hist['total_ptime'].append(total_ptime)
+
+print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
+print("Training finish!... save training results")
+torch.save(G.state_dict(), "CelebA_DCGAN_results/generator_param.pkl")
+torch.save(D.state_dict(), "CelebA_DCGAN_results/discriminator_param.pkl")
+with open('CelebA_DCGAN_results/train_hist.pkl', 'wb') as f:
+    pickle.dump(train_hist, f)
+
+show_train_hist(train_hist, save=True, path='CelebA_DCGAN_results/CelebA_DCGAN_train_hist.png')
+
+images = []
+for e in range(train_epoch):
+    img_name = 'CelebA_DCGAN_results/Fixed_results/CelebA_DCGAN_' + str(e + 1) + '.png'
+    images.append(imageio.imread(img_name))
+imageio.mimsave('CelebA_DCGAN_results/generation_animation.gif', images, fps=5)
+
+
+
+
+
+
+        
 
 
 
