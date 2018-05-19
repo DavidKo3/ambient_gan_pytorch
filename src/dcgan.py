@@ -48,7 +48,7 @@ class G(nn.Module):
 class D(nn.Module):
     def __init__(self, d=128):
         super(D, self).__init__()
-        self.conv1 = nn.Conv2d(1, d, 4, 2, 1)
+        self.conv1 = nn.Conv2d(3, d, 4, 2, 1)
         self.conv2 = nn.Conv2d(d, d*2, 4, 2, 1)
         self.conv2_bn = nn.BatchNorm2d(d*2)
         self.conv3 = nn.Conv2d(d*2, d*4, 4, 2, 1)
@@ -67,7 +67,7 @@ class D(nn.Module):
         x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
         x = F.leaky_relu(self.conv4_bn(self.conv4(x)), 0.2)
         x = F.sigmoid(self.conv5(x))
-
+        # print("D class for x ", x.shape)
         return x
 
     def weight_init(self, m):

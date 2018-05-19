@@ -3,6 +3,9 @@ import os
 import torch
 import pandas as pd
 from skimage import io, transform
+
+from PIL import Image
+
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
@@ -47,11 +50,10 @@ class FaceLandmarksDataset(Dataset):
 
     def __getitem__(self, index):
         img_name = os.path.join(self.root_dir+img_pwd, self.landmarks_frame.iloc[index, 0])
-        image = io.imread(img_name)
+        image = Image.open(img_name).convert('RGB')
         landmarks = self.landmarks_frame.iloc[index, 1:].as_matrix()
         landmarks = landmarks.astype('float').reshape(-1, 2)
         sample = {'image': image, 'landmarks': landmarks}
-
         if self.transform:
             # sample = self.transform(sample)
             sample = self.transform(image)
@@ -59,7 +61,7 @@ class FaceLandmarksDataset(Dataset):
 
 
 
-fig = plt.figure()
+# fig = plt.figure()
 """
 for i in range(len(face_dataset)):
     sample = face_dataset[i]

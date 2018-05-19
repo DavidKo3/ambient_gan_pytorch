@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
-
+import torchvision.utils as vutils
 
 import argparse
 import dcgan as model
@@ -24,13 +24,21 @@ print("Sdfsf")
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--niter', type=int, default=25, help='number of epoch to train for')
+parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--manualseed', type=int, help='manual seed')
-
+parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
+parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 
 opt  = parser.parse_args()
 
 if opt.manualseed is None:
     opt.manualseed = random.randint(1, 10000)
+
+try:
+    os.makedirs(opt.outf)
+except OSError:
+    pass
+
 
 print("Random seed : ", opt.manualseed)
 random.seed(opt.manualseed)
@@ -38,8 +46,6 @@ torch.manual_seed(opt.manualseed)
 
 if torch.cuda.is_available() :
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-
-
 
 
 fixed_z_ = torch.randn((5 * 5, 100)).view(-1, 100, 1, 1)    # fixed noise
@@ -103,7 +109,7 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
     else:
         plt.close
 # training parameters
-batch_size = 128
+
 lr = 0.0002
 train_epoch = 20
 
@@ -127,6 +133,7 @@ transform = transforms.Compose([
 ])
 
 transform_manualed = transforms.Compose([
+    transforms.Scale(64),
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
@@ -137,9 +144,12 @@ img_pwd = 'Img/img_align_celeba/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
 transformed_coco_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
-                                           root_dir=root_dir, transform=transform)
+                                           root_dir=root_dir, transform=transform_manualed)
 
-train_loader =torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=128, shuffle=True)
+train_loader = torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=opt.batchSize, shuffle=True)
+
+
+
 
 # network
 G = model.G(128)
@@ -154,10 +164,12 @@ D.weight_init(D)
 # D.weight_init(mean=0.0, std=0.02)
 G.cuda()
 D.cuda()
+noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).cuda()
+fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1).cuda()
 
 
 # Binary Cross Entropy loss
-BCE_loss = nn.BCELoss()
+BCE_loss = nn.BCELoss().cuda()
 
 # Adam optimizer
 G_optimizer = optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -179,6 +191,10 @@ for epoch in range(train_epoch):
     D_losses = []
     G_losses = []
 
+
+    D.train()
+    G.train()
+
     # learning rate decay
     if (epoch+1) == 11:
         G_optimizer.param_groups[0]['lr'] /= 10
@@ -191,38 +207,43 @@ for epoch in range(train_epoch):
         print("learning rate change!")
 
     epoch_start_time = time.time()
-    for x_ in train_loader:
-        print(x_)
+    for i, x_ in enumerate(train_loader, 0):
+
         # train discriminator D
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real (lod(D(x))
-        D.zero_grad()
+
 
         mini_batch = x_.size()[0] # len of train_loader
+        print("mini_batch: ", mini_batch)
         # print("mini_batch :", mini_batch)
         y_real = torch.ones(mini_batch)
         y_fake = torch.zeros(mini_batch)  # [mini_batch]
 
         x_, y_real, y_fake = Variable(x_.cuda()), Variable(y_real.cuda()), Variable(y_fake.cuda())
-        D_result = D(x_).squeeze()  # D(x)
-        print(D(x_).shape)
-        D_real_loss = BCE_loss(D_result, y_real)  # log(D(x))
+        #
 
+        D_result = D(x_).squeeze()  # D(x)
+
+        D_real_loss = BCE_loss(D_result, y_real) # log(D(x))
+        D_real_loss.backward()
+        D_x = D_real_loss.data.mean()
 
         # train with fake (log(1 - D(G(z))
         z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [x, 100] -> [x, 100, 1 , 1]
         z = Variable(z.cuda())
         G_result = G(z)
 
-        D_result = D(G_result).squeeze() # D(G(z))
+        D_result = D(G_result.detach()).squeeze() # D(G(z))
         D_fake_loss = BCE_loss(D_result, y_fake)
-        D_fake_score = D_result.data.mean()
+
+        D_fake_loss.backward()
+        D_G_z1 = D_fake_loss.data.mean()
 
         D_train_loss = D_real_loss + D_fake_loss   # log(D(x)) + log(1- D(G(z))
 
-        D_train_loss.backward()
         D_optimizer.step()
 
         D_losses.append(D_train_loss.data[0])
@@ -234,41 +255,45 @@ for epoch in range(train_epoch):
         # train generator G
         G.zero_grad()
 
-        z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
+        # z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
+        z = noise
         z = Variable(z.cuda())
 
         G_result = G(z)
         G_result = D(G_result).squeeze()
-        G_train_loss = BCE_loss(D_result, y_real)
+        G_train_loss = BCE_loss(G_result, y_real)
+        D_G_z2 = G_train_loss.data.mean()
         G_train_loss.backward()
-        G_train_loss.step()
+        G_optimizer.step()
 
         G_losses.append(G_train_loss.data[0])
 
         num_iter += 1
 
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+          % (epoch, train_epoch, i, len(train_loader),
+             D_train_loss.data[0], G_train_loss.data[0], D_x, D_G_z1, D_G_z2))
+
+        if i % 100 == 0:
+            vutils.save_image(x_.data , '%s/real_sample.png' % opt.outf)
+            fake = G(fixed_noise)
+            vutils.save_image(fake.data,
+                              '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
+
+
     epoch_end_time = time.time()
     per_epoch_ptime = epoch_end_time - epoch_start_time
+    # do checkpointing
+    torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
+    torch.save(D.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
+
 
 
 end_time = time.time()
 total_ptime = end_time - start_time
-train_hist['total_ptime'].append(total_ptime)
 
-print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
-print("Training finish!... save training results")
-torch.save(G.state_dict(), "CelebA_DCGAN_results/generator_param.pkl")
-torch.save(D.state_dict(), "CelebA_DCGAN_results/discriminator_param.pkl")
-with open('CelebA_DCGAN_results/train_hist.pkl', 'wb') as f:
-    pickle.dump(train_hist, f)
 
-show_train_hist(train_hist, save=True, path='CelebA_DCGAN_results/CelebA_DCGAN_train_hist.png')
-
-images = []
-for e in range(train_epoch):
-    img_name = 'CelebA_DCGAN_results/Fixed_results/CelebA_DCGAN_' + str(e + 1) + '.png'
-    images.append(imageio.imread(img_name))
-imageio.mimsave('CelebA_DCGAN_results/generation_animation.gif', images, fps=5)
+print("end of training time : %d" % total_ptime)
 
 
 
