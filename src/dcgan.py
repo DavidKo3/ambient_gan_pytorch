@@ -3,14 +3,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import torch
 
-
-def weight_init(self, m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+#
+# def weight_init(self, m):
+#     classname = m.__class__.__name__
+#     if classname.find('Conv') != -1:
+#         m.weight.data.normal_(0.0, 0.02)
+#     elif classname.find('BatchNorm') != -1:
+#         m.weight.data.normal_(1.0, 0.02)
+#         m.bias.data.fill_(0)
 class G(nn.Module):
     def __init__(self, d=128):
         super(G, self).__init__()

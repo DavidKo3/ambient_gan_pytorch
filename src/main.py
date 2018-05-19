@@ -23,7 +23,7 @@ print("Sdfsf")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
-parser.add_argument('--niter', type=int, default=25, help='number of epoch to train for')
+parser.add_argument('--niter', type=int, default=20, help='number of epoch to train for')
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--manualseed', type=int, help='manual seed')
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
@@ -146,18 +146,26 @@ annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 transformed_coco_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
                                            root_dir=root_dir, transform=transform_manualed)
 
-train_loader = torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=opt.batchSize, shuffle=True)
+train_loader = torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=opt.batchSize, shuffle=True ,num_workers=2)
 
-
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        print("Conv")
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        print("bachnorm")
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
 
 
 # network
-G = model.G(128)
-D = model.D(128)
-
-
-G.weight_init(G)
-D.weight_init(D)
+G = model.G(64)
+D = model.D(64)
+D.apply(weights_init)
+G.apply(weights_init)
+# G.weight_init(G)
+# D.weight_init(D)
 # D.apply(model.weight_init(D))
 #
 # G.weight_init(mean=0.0, std=0.02)
@@ -172,8 +180,8 @@ fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1).cuda(
 BCE_loss = nn.BCELoss().cuda()
 
 # Adam optimizer
-G_optimizer = optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.999))
-D_optimizer = optim.Adam(D.parameters(), lr=lr, betas=(0.5, 0.999))
+G_optimizer = optim.Adam(G.parameters(), lr=opt.lr, betas=(0.5, 0.999))
+D_optimizer = optim.Adam(D.parameters(), lr=opt.lr, betas=(0.5, 0.999))
 
 train_hist = {}
 train_hist['D_losses'] = []
@@ -182,7 +190,6 @@ train_hist['per_epoch_ptimes'] = []
 train_hist['total_ptime'] = []
 
 
-print("=*10")
 print("training begin !!")
 
 num_iter = 0
@@ -270,7 +277,7 @@ for epoch in range(train_epoch):
 
         num_iter += 1
 
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+        print('[%d/%d][%d/%d] Loss_D: %.8f Loss_G: %.8f D(x): %.8f D(G(z)): %.8f / %.8f'
           % (epoch, train_epoch, i, len(train_loader),
              D_train_loss.data[0], G_train_loss.data[0], D_x, D_G_z1, D_G_z2))
 
