@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import print_function
 
 import os, time, sys
@@ -143,10 +145,17 @@ root_dir= '/home/davidk/Downloads/celeba_dataset/'
 img_pwd = 'Img/img_align_celeba/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
-transformed_coco_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
+transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
                                            root_dir=root_dir, transform=transform_manualed)
 
-train_loader = torch.utils.data.DataLoader(transformed_coco_dataset, batch_size=opt.batchSize, shuffle=True ,num_workers=2)
+train_loader = torch.utils.data.DataLoader(transformed_celebra_dataset, batch_size=opt.batchSize,
+                                           shuffle=True ,num_workers=2, drop_last=True)
+
+# coco_cap = datasets.CocoCaptions(root = '/home/davidk/Downloads/cocodataset/train2014.zip',
+#                         annFile = '/home/davidk/Downloads/annotations_trainval2014.zip',
+#                         transform=transform_manualed)
+#
+# train_loader= torch.utils.data.DataLoader(coco_cap, batch_size=opt.batchSize, shuffle=True ,num_workers=2)
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -173,8 +182,8 @@ G.apply(weights_init)
 G.cuda()
 D.cuda()
 noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).cuda()
-fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1).cuda()
-
+fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
+fixed_noise = Variable(fixed_noise.cuda(), volatile=True)
 
 # Binary Cross Entropy loss
 BCE_loss = nn.BCELoss().cuda()
@@ -194,6 +203,8 @@ print("training begin !!")
 
 num_iter = 0
 start_time = time.time()
+
+
 for epoch in range(train_epoch):
     D_losses = []
     G_losses = []
@@ -270,6 +281,10 @@ for epoch in range(train_epoch):
         G_result = D(G_result).squeeze()
         G_train_loss = BCE_loss(G_result, y_real)
         D_G_z2 = G_train_loss.data.mean()
+
+        # Back propagation
+        D.zero_grad()
+        G.zero_grad()
         G_train_loss.backward()
         G_optimizer.step()
 
