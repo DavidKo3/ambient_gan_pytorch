@@ -20,21 +20,22 @@ import torchvision.utils as vutils
 import argparse
 import dcgan as model
 import data_loader as data_loader
+from utils import *
 print("Sdfsf")
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--niter', type=int, default=20, help='number of epoch to train for')
-parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+parser.add_argument('--batchSize', type=int, default=128, help='input batch size')
 parser.add_argument('--manualseed', type=int, help='manual seed')
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 
 opt  = parser.parse_args()
 
-if opt.manualseed is None:
-    opt.manualseed = random.randint(1, 10000)
+# if opt.manualseed is None:
+#     opt.manualseed = random.randint(1, 10000)
 
 try:
     os.makedirs(opt.outf)
@@ -42,16 +43,14 @@ except OSError:
     pass
 
 
-print("Random seed : ", opt.manualseed)
-random.seed(opt.manualseed)
-torch.manual_seed(opt.manualseed)
+# print("Random seed : ", opt.manualseed)
+# random.seed(opt.manualseed)
+# torch.manual_seed(opt.manualseed)
 
 if torch.cuda.is_available() :
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 
-fixed_z_ = torch.randn((5 * 5, 100)).view(-1, 100, 1, 1)    # fixed noise
-fixed_z_ = Variable(fixed_z_.cuda(), volatile=True)
 
 
 def show_result(num_epoch, show = False, save = False, path = 'result.png', isFix=False):
@@ -113,7 +112,7 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
 # training parameters
 
 lr = 0.0002
-train_epoch = 20
+num_epochs = 20
 
 isCrop = False
 # data_loader
@@ -135,21 +134,21 @@ transform = transforms.Compose([
 ])
 
 transform_manualed = transforms.Compose([
-    transforms.Scale(64),
+    # transforms.Scale(64),
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
 ])
 
 root_dir= '/home/davidk/Downloads/celeba_dataset/'
-img_pwd = 'Img/img_align_celeba/'
+img_pwd = '/resized_celeba/celebA/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
-transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd,
+transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd, img_dir=img_pwd,
                                            root_dir=root_dir, transform=transform_manualed)
 
 train_loader = torch.utils.data.DataLoader(transformed_celebra_dataset, batch_size=opt.batchSize,
-                                           shuffle=True ,num_workers=2, drop_last=True)
+                                           shuffle=True, num_workers=2, drop_last=True)
 
 # coco_cap = datasets.CocoCaptions(root = '/home/davidk/Downloads/cocodataset/train2014.zip',
 #                         annFile = '/home/davidk/Downloads/annotations_trainval2014.zip',
@@ -181,8 +180,16 @@ G.apply(weights_init)
 # D.weight_init(mean=0.0, std=0.02)
 G.cuda()
 D.cuda()
+
+
+
+# fixed_z_ = torch.randn((opt.batchSize, 100)).view(-1, 100, 1, 1)    # fixed noise
+# fixed_noise = Variable(fixed_z_.cuda(), volatile=True)
+
+
+
 noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).cuda()
-fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
+fixed_noise = torch.FloatTensor(5*5, opt.nz, 1, 1).normal_(0, 1)
 fixed_noise = Variable(fixed_noise.cuda(), volatile=True)
 
 # Binary Cross Entropy loss
@@ -192,11 +199,11 @@ BCE_loss = nn.BCELoss().cuda()
 G_optimizer = optim.Adam(G.parameters(), lr=opt.lr, betas=(0.5, 0.999))
 D_optimizer = optim.Adam(D.parameters(), lr=opt.lr, betas=(0.5, 0.999))
 
-train_hist = {}
-train_hist['D_losses'] = []
-train_hist['G_losses'] = []
-train_hist['per_epoch_ptimes'] = []
-train_hist['total_ptime'] = []
+# train_hist = {}
+# train_hist['D_losses'] = []
+# train_hist['G_losses'] = []
+# train_hist['per_epoch_ptimes'] = []
+# train_hist['total_ptime'] = []
 
 
 print("training begin !!")
@@ -205,13 +212,12 @@ num_iter = 0
 start_time = time.time()
 
 
-for epoch in range(train_epoch):
+for epoch in range(num_epochs):
     D_losses = []
     G_losses = []
 
-
-    D.train()
-    G.train()
+    # D.train()
+    # G.train()
 
     # learning rate decay
     if (epoch+1) == 11:
@@ -226,81 +232,83 @@ for epoch in range(train_epoch):
 
     epoch_start_time = time.time()
     for i, x_ in enumerate(train_loader, 0):
-
+        print(x_.size())
         # train discriminator D
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real (lod(D(x))
 
-
         mini_batch = x_.size()[0] # len of train_loader
-        print("mini_batch: ", mini_batch)
         # print("mini_batch :", mini_batch)
         y_real = torch.ones(mini_batch)
         y_fake = torch.zeros(mini_batch)  # [mini_batch]
 
         x_, y_real, y_fake = Variable(x_.cuda()), Variable(y_real.cuda()), Variable(y_fake.cuda())
-        #
 
         D_result = D(x_).squeeze()  # D(x)
 
         D_real_loss = BCE_loss(D_result, y_real) # log(D(x))
-        D_real_loss.backward()
+
+        # D_real_loss.backward()
         D_x = D_real_loss.data.mean()
 
-        # train with fake (log(1 - D(G(z))
+
+
+        # train discriminator with fake (log(1 - D(G(z))
         z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [x, 100] -> [x, 100, 1 , 1]
         z = Variable(z.cuda())
-        G_result = G(z)
+        gen_image = G(z)
 
-        D_result = D(G_result.detach()).squeeze() # D(G(z))
-        D_fake_loss = BCE_loss(D_result, y_fake)
-
-        D_fake_loss.backward()
+        D_fake_decision = D(gen_image).squeeze() # D(G(z))
+        D_fake_loss = BCE_loss(D_fake_decision, y_fake)
+        # D_fake_loss.backward()
         D_G_z1 = D_fake_loss.data.mean()
 
-        D_train_loss = D_real_loss + D_fake_loss   # log(D(x)) + log(1- D(G(z))
 
+        # Back propagation
+        D_loss = D_real_loss + D_fake_loss   # log(D(x)) + log(1- D(G(z))
+        D.zero_grad()
+        D_loss.backward()
         D_optimizer.step()
-
-        D_losses.append(D_train_loss.data[0])
-
 
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
         # train generator G
-        G.zero_grad()
 
-        # z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
-        z = noise
+
+        z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
+        # z = noise
         z = Variable(z.cuda())
+        gen_image = G(z)
 
-        G_result = G(z)
-        G_result = D(G_result).squeeze()
-        G_train_loss = BCE_loss(G_result, y_real)
-        D_G_z2 = G_train_loss.data.mean()
+        D_fake_decision = D(gen_image).squeeze()
+        G_loss = BCE_loss(D_fake_decision, y_real)
+        D_G_z2 = G_loss.data.mean()
 
         # Back propagation
         D.zero_grad()
         G.zero_grad()
-        G_train_loss.backward()
+        G_loss.backward()
         G_optimizer.step()
 
-        G_losses.append(G_train_loss.data[0])
+        # loss values
+        D_losses.append(D_loss.data[0])
+        G_losses.append(G_loss.data[0])
 
         num_iter += 1
 
-        print('[%d/%d][%d/%d] Loss_D: %.8f Loss_G: %.8f D(x): %.8f D(G(z)): %.8f / %.8f'
-          % (epoch, train_epoch, i, len(train_loader),
-             D_train_loss.data[0], G_train_loss.data[0], D_x, D_G_z1, D_G_z2))
+        print('Epoch [%d/%d], Step [%d/%d], D_loss: %.4f, G_loss: %.4f'
+              % (epoch+1, num_epochs, i+1, len(train_loader), D_loss.data[0], G_loss.data[0]))
+
 
         if i % 100 == 0:
-            vutils.save_image(x_.data , '%s/real_sample.png' % opt.outf)
-            fake = G(fixed_noise)
-            vutils.save_image(fake.data,
-                              '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
+            plot_result(G, fixed_noise, 64, i, epoch,  "./results",)
+            # vutils.save_image(x_.data , '%s/real_sample.png' % opt.outf)
+            # fake = G(fixed_noise)
+            # vutils.save_image(fake.data,
+            #                   '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
 
 
     epoch_end_time = time.time()

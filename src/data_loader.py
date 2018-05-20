@@ -33,7 +33,7 @@ landmarks_frame = pd.read_csv(root_dir+annotations_pwd)
 class FaceLandmarksDataset(Dataset):
     """Face Landmark dataset."""
 
-    def __init__(self, txt_file, root_dir, transform=None):
+    def __init__(self, txt_file, img_dir, root_dir, transform=None):
         """
         Args:
             csv_file (string) : Path to the csv file with annotations.
@@ -41,6 +41,7 @@ class FaceLandmarksDataset(Dataset):
             transform (callable, optiopnal) : Optional transform to be applied on a sample.
         """
         self.root_dir = root_dir
+        self.img_dir = img_dir
         self.landmarks_frame = pd.read_csv(self.root_dir+txt_file, skiprows=2, header=None, delim_whitespace=True)
 
         self.transform = transform
@@ -49,7 +50,7 @@ class FaceLandmarksDataset(Dataset):
         return len(self.landmarks_frame)
 
     def __getitem__(self, index):
-        img_name = os.path.join(self.root_dir+img_pwd, self.landmarks_frame.iloc[index, 0])
+        img_name = os.path.join(self.root_dir+self.img_dir, self.landmarks_frame.iloc[index, 0])
         image = Image.open(img_name).convert('RGB')
         landmarks = self.landmarks_frame.iloc[index, 1:].as_matrix()
         landmarks = landmarks.astype('float').reshape(-1, 2)
@@ -164,22 +165,22 @@ class ToTensor(object):
 
 
 
-transformed_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
-                                           root_dir=root_dir,
-                                           transform=transforms.Compose([
-                                               Rescale(256),
-                                               RandomCrop(224),
-                                               ToTensor()
-                                           ]))
-
-
-transformed_coco_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
-                                           root_dir=root_dir,
-                                           transform=transforms.Compose([
-                                               Rescale(108),
-                                               RandomCrop(224),
-                                               ToTensor()
-                                           ]))
+# transformed_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
+#                                            root_dir=root_dir,
+#                                            transform=transforms.Compose([
+#                                                Rescale(256),
+#                                                RandomCrop(224),
+#                                                ToTensor()
+#                                            ]))
+#
+#
+# transformed_coco_dataset = FaceLandmarksDataset(txt_file=annotations_pwd,
+#                                            root_dir=root_dir,
+#                                            transform=transforms.Compose([
+#                                                Rescale(108),
+#                                                RandomCrop(224),
+#                                                ToTensor()
+#                                            ]))
 
 # for i in range(len(transformed_dataset)):
 #     sample = transformed_dataset[i]
