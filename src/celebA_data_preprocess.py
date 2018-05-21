@@ -4,7 +4,7 @@ from scipy.misc import imresize
 from PIL import Image
 # root path depends on your computer
 root = '/home/davidk/Downloads/celeba_dataset/Img/img_align_celeba/'
-save_root = '/home/davidk/Downloads/celeba_dataset/Img/resized_celeba/'
+save_root = '/home/davidk/Downloads/celeba_dataset/resized_celeba/'
 resize_size = 64
 
 if not os.path.isdir(save_root):

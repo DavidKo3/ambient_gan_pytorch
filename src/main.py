@@ -232,7 +232,7 @@ for epoch in range(num_epochs):
 
     epoch_start_time = time.time()
     for i, x_ in enumerate(train_loader, 0):
-        print(x_.size())
+
         # train discriminator D
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
