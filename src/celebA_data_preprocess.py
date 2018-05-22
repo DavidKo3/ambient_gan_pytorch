@@ -4,7 +4,7 @@ from scipy.misc import imresize
 from PIL import Image
 # root path depends on your computer
 root = '/home/davidk/Downloads/celeba_dataset/Img/img_align_celeba/'
-save_root = '/home/davidk/Downloads/celeba_dataset/resized_celeba_@/'
+save_root = '/home/davidk/Downloads/celeba_dataset/resized_celeba/'
 resize_size = 64
 
 if not os.path.isdir(save_root):
@@ -13,7 +13,6 @@ if not os.path.isdir(save_root + 'celebA'):
     os.mkdir(save_root + 'celebA')
 img_list = os.listdir(root)
 
-# ten_percent = len(img_list) // 10
 
 for i in range(len(img_list)):
     img = Image.open(root + img_list[i])

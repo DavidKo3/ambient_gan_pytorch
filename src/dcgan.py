@@ -32,8 +32,8 @@ class G(nn.Module):
         x = F.relu(self.deconv3_bn(self.deconv3(x)))
         x = F.relu(self.deconv4_bn(self.deconv4(x)))
         x = F.tanh(self.deconv5(x))
-
-        return x
+        # print("G class for x ", x.shape)
+        return x # [128, 3, 64, 64]
 
     def weight_init(self, m):
         classname = m.__class__.__name__
@@ -43,6 +43,14 @@ class G(nn.Module):
             m.weight.data.normal_(1.0, 0.02)
             m.bias.data.fill_(0)
 
+    def normal_init(m, mean=0.0, std=0.02):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            m.weight.data.normal_(mean, std)
+            m.bias.data.zero_()
+
+        if isinstance(m , nn.BatchNorm2d):
+            m.weight.data.normal_(1.0, std)
+            m.bias.data.zero_()
 
 
 class D(nn.Module):
@@ -68,7 +76,7 @@ class D(nn.Module):
         x = F.leaky_relu(self.conv4_bn(self.conv4(x)), 0.2)
         x = F.sigmoid(self.conv5(x))
         # print("D class for x ", x.shape)
-        return x
+        return x # [128 x 1 x  1 x 1]
 
     def weight_init(self, m):
         classname = m.__class__.__name__
@@ -78,7 +86,35 @@ class D(nn.Module):
             m.weight.data.normal_(1.0, 0.02)
             m.bias.data.fill_(0)
 
-def normal_init(m, mean, std):
-    if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-        m.weight.data.normal_(mean, std)
-        m.bias.data.zero_()
+    def normal_init(m, mean=0.0, std=0.02):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            m.weight.data.normal_(mean, std)
+            m.bias.data.zero_()
+
+        if isinstance(m , nn.BatchNorm2d):
+            m.weight.data.normal_(1.0, std)
+            m.bias.data.zero_()
+
+class measurement(nn.Module):
+    def __init__(self, d=64):
+        super(measurement, self).__init__()
+        self.linear = nn.Linear(3*64*64, 3*64*64) # [12288 x 12288]
+
+
+    def forward(self, input):
+        flatten = input.view(input.size(0), -1) # [128 x 12288]
+        x = self.linear(flatten) #[128 x 12288]
+        x = flatten.view(-1, 3, 64 ,64 )
+        return x # [128 x 3 x  64 x 64]
+
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
+
+    def normal_init(m, mean=0.0, std=1/64):
+        if isinstance(m , nn.Linear):
+            m.weight.data.normal_(mean, std)
+            m.bias.data.zero_()

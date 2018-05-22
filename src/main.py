@@ -142,7 +142,7 @@ transform_manualed = transforms.Compose([
 
 root_dir= '/home/davidk/Downloads/celeba_dataset/'
 # img_pwd = '/resized_celeba/celebA/'
-img_pwd = '/gaussian_noise_celeba/celebA/'
+img_pwd = '/random_cropping/celebA/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
 transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd, img_dir=img_pwd,
@@ -171,17 +171,19 @@ def weights_init(m):
 # network
 G = model.G(64)
 D = model.D(64)
-D.apply(weights_init)
-G.apply(weights_init)
+mem = model.measurement(64)
+# D.apply(weights_init)
+# G.apply(weights_init)
 # G.weight_init(G)
 # D.weight_init(D)
 # D.apply(model.weight_init(D))
 #
-# G.weight_init(mean=0.0, std=0.02)
-# D.weight_init(mean=0.0, std=0.02)
+G.normal_init(mean=0.0, std=0.02)
+D.normal_init(mean=0.0, std=0.02)
+mem.normal_init(mean=0.0, std=1/64)
 G.cuda()
 D.cuda()
-
+mem.cuda()
 
 
 # fixed_z_ = torch.randn((opt.batchSize, 100)).view(-1, 100, 1, 1)    # fixed noise
@@ -211,7 +213,7 @@ print("training begin !!")
 
 num_iter = 0
 start_time = time.time()
-
+mem.eval()
 
 for epoch in range(num_epochs):
     D_losses = []
@@ -258,8 +260,10 @@ for epoch in range(num_epochs):
 
         # train discriminator with fake (log(1 - D(G(z))
         z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [x, 100] -> [x, 100, 1 , 1]
-        z = Variable(z.cuda())
-        gen_image = G(z)
+        z = Variable(z.cuda()) # [128 x 100 x 1 x 1]
+        gen_image = G(z) # [128 x 3 x 64 x 64]
+
+        projected_image = mem(gen_image)
 
         D_fake_decision = D(gen_image).squeeze() # D(G(z))
         D_fake_loss = BCE_loss(D_fake_decision, y_fake)
