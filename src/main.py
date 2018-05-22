@@ -141,7 +141,8 @@ transform_manualed = transforms.Compose([
 ])
 
 root_dir= '/home/davidk/Downloads/celeba_dataset/'
-img_pwd = '/resized_celeba/celebA/'
+# img_pwd = '/resized_celeba/celebA/'
+img_pwd = '/gaussian_noise_celeba/celebA/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
 transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd, img_dir=img_pwd,

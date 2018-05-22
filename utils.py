@@ -14,6 +14,8 @@ import imageio
 
 
 def plot_result(G, fixed_noise, image_size, num_iter, num_epoch, save_dir, fig_size=(5, 5), is_gray=False):
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
     G.eval()
     generate_images = G(fixed_noise)
     G.train()
