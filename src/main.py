@@ -141,8 +141,8 @@ transform_manualed = transforms.Compose([
 ])
 
 root_dir= '/home/davidk/Downloads/celeba_dataset/'
-# img_pwd = '/resized_celeba/celebA/'
-img_pwd = '/random_cropping/celebA/'
+img_pwd = '/resized_celeba/celebA/'
+img_random_crop_pwd = '/random_cropping/celebA/'
 annotations_pwd = 'annotations/list_landmarks_align_celeba.txt'
 
 transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd, img_dir=img_pwd,
@@ -150,6 +150,13 @@ transformed_celebra_dataset = data_loader.FaceLandmarksDataset(txt_file=annotati
 
 train_loader = torch.utils.data.DataLoader(transformed_celebra_dataset, batch_size=opt.batchSize,
                                            shuffle=True, num_workers=2, drop_last=True)
+
+# transformed_celebra_random_crop_fixed = data_loader.FaceLandmarksDataset(txt_file=annotations_pwd, img_dir=img_random_crop_pwd,
+#                                            root_dir=root_dir, transform=transform_manualed)
+#
+# random_crop_loader = torch.utils.data.DataLoader(transformed_celebra_random_crop_fixed, batch_size=opt.batchSize,
+#                                            shuffle=True, num_workers=2, drop_last=True)
+
 
 # coco_cap = datasets.CocoCaptions(root = '/home/davidk/Downloads/cocodataset/train2014.zip',
 #                         annFile = '/home/davidk/Downloads/annotations_trainval2014.zip',
@@ -261,11 +268,18 @@ for epoch in range(num_epochs):
         # train discriminator with fake (log(1 - D(G(z))
         z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [x, 100] -> [x, 100, 1 , 1]
         z = Variable(z.cuda()) # [128 x 100 x 1 x 1]
+        noise = torch.randn((mini_batch, 3, 64, 64))
+        noise = Variable(noise.cuda())
+        # print(noise.size())
         gen_image = G(z) # [128 x 3 x 64 x 64]
 
-        projected_image = mem(gen_image)
+        """gen_image transform from it to gaussian with noise"""
 
-        D_fake_decision = D(gen_image).squeeze() # D(G(z))
+        """f(gen_image) = k*gen_iamge+rabdom.noise(0,1)"""
+        project_img = mem(gen_image) + noise
+        print(project_img.size())
+        D_fake_decision = D(project_img).squeeze()  # D(G(z))
+        # D_fake_decision = D(gen_image).squeeze() # D(G(z))
         D_fake_loss = BCE_loss(D_fake_decision, y_fake)
         # D_fake_loss.backward()
         D_G_z1 = D_fake_loss.data.mean()
@@ -286,9 +300,16 @@ for epoch in range(num_epochs):
         z = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1) # [mini_batch x 100] - > [mini_batch x 100 x 1 x 1]
         # z = noise
         z = Variable(z.cuda())
-        gen_image = G(z)
+        noise = torch.randn((mini_batch, 3, 64, 64))
+        noise = Variable(noise.cuda())
+        gen_image = G(z) # [128 x 3 x 64 x 64]
+        # print("gen_image ", gen_image.size())
 
-        D_fake_decision = D(gen_image).squeeze()
+        """gen_image transform from it to gaussian with noise"""
+
+        """f(gen_image) = k*gen_iamge+rabdom.noise(0,1)"""
+        project_img = mem(gen_image) + noise
+        D_fake_decision = D(project_img).squeeze()
         G_loss = BCE_loss(D_fake_decision, y_real)
         D_G_z2 = G_loss.data.mean()
 

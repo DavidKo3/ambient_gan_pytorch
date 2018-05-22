@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch
+import numpy as np
 
 #
 # def weight_init(self, m):
@@ -96,15 +97,18 @@ class D(nn.Module):
             m.bias.data.zero_()
 
 class measurement(nn.Module):
+    """f :convolve with adding noise"""
     def __init__(self, d=64):
         super(measurement, self).__init__()
-        self.linear = nn.Linear(3*64*64, 3*64*64) # [12288 x 12288]
-
+        # self.linear = nn.Linear(3*64*64, 3*64*64) # [12288 x 12288]
+        self.conv = nn.Conv2d(3,3,1)
 
     def forward(self, input):
-        flatten = input.view(input.size(0), -1) # [128 x 12288]
-        x = self.linear(flatten) #[128 x 12288]
-        x = flatten.view(-1, 3, 64 ,64 )
+        # flatten = input.view(input.size(0), -1) # [128 x 12288]
+        # x = self.linear(flatten) #[128 x 12288]
+        # x = flatten.view(-1, 3, 64 ,64 )
+        x= self.conv(input)
+        # print(x.size())
         return x # [128 x 3 x  64 x 64]
 
     def num_flat_features(self, x):
@@ -115,6 +119,6 @@ class measurement(nn.Module):
         return num_features
 
     def normal_init(m, mean=0.0, std=1/64):
-        if isinstance(m , nn.Linear):
+        if isinstance(m , nn.Conv2d):
             m.weight.data.normal_(mean, std)
-            m.bias.data.zero_()
+            m.bias.data.fill_(0)
