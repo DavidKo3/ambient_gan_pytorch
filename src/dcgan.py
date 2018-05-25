@@ -122,12 +122,22 @@ class measurement(nn.Module):
                                          # [3 x 3 x 3]
         batched_gaussian = Variable(torch.stack([kernel for i in range(batchSize)])).cuda()  # stack kernel into batches # [128, 3, 3, 3]
 
-        self.conv.weight.data.copy_(Variable(kernel))
-        x= self.conv(input)
-        "need to nomalize for x[:,0], x[:,1], x[:,2]"
+        self.conv.weight.data.copy_(kernel)
 
+        x = self.conv(input)
+
+        # for batch in range(batchSize):
+        #     for ch in range(3):
+        #         t= F.ma
+        #         x[batch, ch, :, :] = x[batch, ch, :, :]/ torch.max(x[batch, ch, :, :])
+        # "need to nomalize for x[:,0], x[:,1], x[:,2]"
+        torch.nn.functional.normalize(x, p=2, dim=2)
+
+
+        # torch.nn.functional.normalize(x, p=2, dim=0)
         # x = F.conv2d(input, batched_gaussian)  # nnf is torch.nn.functional
         # print(self.conv.weight.data)
+
         return x # [128 x 3 x  64 x 64]
 
     def num_flat_features(self, x):

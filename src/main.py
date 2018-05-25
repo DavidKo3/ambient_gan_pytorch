@@ -138,7 +138,7 @@ transform = transforms.Compose([
 ])
 
 transform_manualed = transforms.Compose([
-    # transforms.Scale(64),
+
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
@@ -270,9 +270,10 @@ for epoch in range(num_epochs):
 
             x_ = Variable(x_)
             x_ = x_.cuda()
-            print("before x_ ", x_[0, 0, 60:80, 40:50])
             x_ = mem(x_)
-            print("after x_ ",x_[0,0,60:80,40:50])
+            # print("before x_ ", x_[0, 0, 60:80, 40:50])
+
+            # print("after x_ ",x_[0,:,60:80,40:50])
             # D_result = D(x_).squeeze()  # D(x)
 
             D_result = D(x_).squeeze()  # D(x)
@@ -353,11 +354,11 @@ for epoch in range(num_epochs):
 
 
             if i % 100 == 0:
-                # plot_result(G, fixed_noise, 64, i, epoch,  "./results",)
-                vutils.save_image(x_.data , '%s/real_sample.png' % opt.outf)
-                fake = G(fixed_noise)
-                vutils.save_image(fake.data,
-                                  '%s/fake_samples_epoch_%03d_%04d.png' % (opt.outf, epoch, i))
+                plot_result(G, fixed_noise, 64, i, epoch,  "./results",)
+                # vutils.save_image(x_.data , '%s/real_sample.png' % opt.outf)
+                # fake = G(fixed_noise)
+                # vutils.save_image(fake.data,
+                #                   '%s/fake_samples_epoch_%03d_%04d.png' % (opt.outf, epoch, i))
 
 
     epoch_end_time = time.time()
